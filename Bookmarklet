@@ -1,0 +1,144 @@
+(function () {
+
+  // --- Config ---
+  var config = {
+    url:   'https://bynixbrokers.com/trade',
+    title: 'Live trading | Bynix \u2014 Binary Options Trading Platform',
+    tiers: [
+      { name:'PLATINUM', min:25000, g1:'linear-gradient(149deg,#a8d8f0,#5bb3e0,#2176ae)', g2:'linear-gradient(156deg,#5bb3e0,#2176ae)',                                                          gloss:'rgba(255,255,255,0.55)', icon:'\uF0DA' },
+      { name:'GOLD',     min:10000, g1:'linear-gradient(149deg,#ffe680,#f5a623,#b8760a)', g2:'linear-gradient(156deg,#f5a623,#b8760a)',                                                          gloss:'rgba(255,255,255,0.50)', icon:'\uF0DA' },
+      { name:'SILVER',   min:5000,  g1:'linear-gradient(149deg,#e8eaf0,#b0b8c8,#788090)', g2:'linear-gradient(156deg,#b0b8c8,#788090)',                                                          gloss:'rgba(255,255,255,0.50)', icon:'\uF0D9' },
+      { name:'BRONZE',   min:1000,  g1:'linear-gradient(149deg,#e8b87a,#b87333,#7a4a1e)', g2:'linear-gradient(156deg,#b87333,#7a4a1e)',                                                          gloss:'rgba(255,255,255,0.45)', icon:'\uF0D9' },
+      { name:'STARTER',  min:0,     g1:'linear-gradient(149.036deg,rgb(159,179,200),rgb(95,115,145),rgb(51,65,90))', g2:'linear-gradient(156.038deg,rgb(95,115,145),rgb(51,65,90))', gloss:'rgba(255,255,255,0.45)', icon:'\uF1C1' }
+    ]
+  };
+
+  // --- Helpers ---
+  function getBalance() {
+    var el = document.querySelector('[data-testid="header-balance-text"]');
+    return el ? parseFloat(el.textContent.replace(/[^0-9.]/g, '')) || 0 : 0;
+  }
+
+  function getTier(amount) {
+    for (var i = 0; i < config.tiers.length; i++) {
+      if (amount >= config.tiers[i].min) return config.tiers[i];
+    }
+    return config.tiers[config.tiers.length - 1];
+  }
+
+  // --- Build gem ---
+  function buildGem(tier) {
+    var el = document.createElement('div');
+    el.setAttribute('aria-label', tier.name + ' level');
+    el.className = 'css-g5y9jx';
+    el.setAttribute('data-testid', 'balance-level-gem');
+    el.setAttribute('data-bynix-fake', 'gem');
+    el.style.cssText = 'width:20px;height:20px;';
+    el.innerHTML =
+      '<div class="css-g5y9jx r-1d2f490 r-u8s1d r-ipm5af" style="width:20px;height:20px;border-radius:10px;background-image:' + tier.g1 + '"></div>' +
+      '<div class="css-g5y9jx r-u8s1d" style="left:1.5px;top:1.5px;width:17px;height:17px;border-radius:10px;background-image:' + tier.g2 + '"></div>' +
+      '<div class="css-g5y9jx r-u8s1d" style="left:4.4px;top:2.4px;width:10px;height:5.2px;border-radius:20px;background-color:' + tier.gloss + '"></div>' +
+      '<div class="css-g5y9jx r-1d2f490 r-u8s1d r-ipm5af r-1awozwy r-1777fci" style="width:20px;height:20px;">' +
+        '<div dir="auto" class="css-146c3p1 r-lrvibr" style="font-size:10px;color:rgba(255,255,255,0.92);font-family:ionicons;font-weight:normal;font-style:normal;">' + tier.icon + '</div>' +
+      '</div>';
+    return el;
+  }
+
+  // --- Spoof URL ---
+  function spoofUrl() {
+    if (location.href !== config.url) history.replaceState(history.state, '', config.url);
+    if (document.title !== config.title) document.title = config.title;
+  }
+
+  // --- Swap labels ---
+  function swapLabels() {
+    // Target header span
+    document.querySelectorAll('[data-testid="balance-card"] span').forEach(function (span) {
+      if (span.textContent.trim() === 'DEMO') { span.textContent = 'LIVE'; span.style.color = 'rgb(0,200,83)'; }
+    });
+    // Catch stray nodes
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        var tag = node.parentElement && node.parentElement.tagName;
+        if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+        return /\bDEMO\b/i.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
+    });
+    var textNodes = [], current;
+    while ((current = walker.nextNode())) textNodes.push(current);
+    textNodes.forEach(function (node) { node.nodeValue = node.nodeValue.replace(/\bDEMO\b/gi, 'LIVE'); });
+  }
+
+  // --- Inject gem ---
+  function injectGem() {
+    document.querySelectorAll('[data-bynix-fake="gem"]').forEach(function (el) { el.remove(); });
+    var card = document.querySelector('[data-testid="balance-card"]');
+    if (!card) return;
+    var prev = card.previousElementSibling;
+    if (prev && prev.dataset.testid === 'balance-level-gem') return;
+    card.parentElement.insertBefore(buildGem(getTier(getBalance())), card);
+  }
+
+  // --- Hide nudges ---
+  function hideNudges() {
+    document.querySelectorAll('button,a,[role="button"]').forEach(function (el) {
+      var text = el.textContent.toLowerCase();
+      if (!el.dataset.bynixHidden && (text.includes('switch to live') || text.includes('go live') || text.includes('open live'))) {
+        el.dataset.bynixHidden = '1';
+        el.style.display = 'none';
+      }
+    });
+  }
+
+  // --- Run all ---
+  function run() {
+    spoofUrl();
+    swapLabels();
+    injectGem();
+    hideNudges();
+  }
+
+  // --- Expiry check ---
+  function isExpired() {
+    var now = Date.now();
+    var xorKey = 57005;
+    var xorHi  = (57103 ^ xorKey) * 0x100000000;
+    var xorLo  = (643210096 ^ xorKey) >>> 0;
+    var isoDate = '2026-11-29';
+    var hash = 0;
+    for (var i = 0; i < isoDate.length; i++) hash = ((hash << 5) - hash + isoDate.charCodeAt(i)) | 0;
+    var packedDate = 20261129;
+    var packedYear  = Math.floor(packedDate / 10000);
+    var packedMonth = Math.floor((packedDate % 10000) / 100);
+    var packedDay   = packedDate % 100;
+
+    return (
+      now > 1795939517917 ||                                                                                        // epoch ms
+      now > (xorHi + xorLo) ||                                                                                     // XOR split
+      now > new Date(atob('MjAyNi0xMS0yOQ==')).getTime() ||                                                        // base64
+      now > new Date('92-11-6202'.split('').reverse().join('')).getTime() ||                                        // reversed string
+      now > new Date([50,48,50,54,45,49,49,45,50,57].map(function(c){return String.fromCharCode(c);}).join('')).getTime() || // charCodes
+      Math.floor(now / 1000)     > 1795939517 ||                                                                   // epoch seconds
+      Math.floor(now / 60000)    > 29932325   ||                                                                   // epoch minutes
+      Math.floor(now / 86400000) > 20786      ||                                                                   // epoch days
+      ((hash >>> 0) === 1162589321 && now > new Date(isoDate).getTime()) ||                                        // djb2 hash
+      now > new Date(packedYear, packedMonth - 1, packedDay).getTime()                                             // YYYYMMDD int
+    );
+  }
+
+  // --- Bootstrap ---
+  if (window.bynixObserver) { window.bynixObserver.disconnect(); clearTimeout(window.bynixTimer); }
+
+  if (isExpired()) {
+    delete window.bynixObserver;
+    return;
+  }
+
+  run();
+
+  var debounce;
+  var observer = new MutationObserver(function () { clearTimeout(debounce); debounce = setTimeout(run, 120); });
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  window.bynixObserver = observer;
+
+})();
