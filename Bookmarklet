@@ -1,6 +1,3 @@
-//V2
-
-
 (function () {
 
   // --- Config ---
@@ -78,16 +75,8 @@
     document.querySelectorAll('[data-bynix-fake="gem"]').forEach(function (el) { el.remove(); });
     var card = document.querySelector('[data-testid="balance-card"]');
     if (!card) return;
-    // Find existing icon (last div child — the ionicon lightbulb)
-    var existingIcon = card.querySelector('div[dir="auto"]');
-    if (!existingIcon) existingIcon = card.lastElementChild;
-    var gem = buildGem(getTier(getBalance()));
-    // Replace icon inside card, not outside
-    if (existingIcon && existingIcon !== gem) {
-      card.replaceChild(gem, existingIcon);
-    } else if (!card.querySelector('[data-bynix-fake="gem"]')) {
-      card.insertBefore(gem, card.firstChild);
-    }
+    // Prepend gem before text block
+    card.insertBefore(buildGem(getTier(getBalance())), card.firstChild);
   }
 
   // --- Hide nudges ---
